@@ -28,7 +28,11 @@ CRITICAL RULES:
 
 4. LAST CHARACTER EXTRACTION:
    - Ignore punctuation (।, ॥), numbers, and source citations.
-   - Extract the last meaningful Devanagari consonant from the verse.
+   - If the shloka ends with a halant (्), DO NOT use that consonant with halant.
+   - Instead, use the consonant that comes BEFORE the halant.
+   - Example: If shloka ends with "माधवम्", the lastChar should be "व" (not "म").
+   - Extract the last meaningful Devanagari consonant WITHOUT halant.
+
 5. AI RESPONSE:
    - Must start with the lastChar of the user's shloka.
    - Should be a COMPLETE well-known Sanskrit shloka with all padas/lines.
@@ -165,7 +169,7 @@ const callGeminiApi = async (
       If the first character is "${targetChar}":
       - Set isValid = true
       - Fill shlokaDetails.text with the COMPLETE/FULL CORRECTED shloka (all padas/lines, not just what user typed)
-      - Fill shlokaDetails.lastChar with the last consonant before any citations/numbers
+      - Fill shlokaDetails.lastChar: If shloka ends with halant (्), take the consonant BEFORE the halant. Example: "माधवम्" → lastChar is "व"
       - Fill aiResponse with a COMPLETE Sanskrit shloka starting with that lastChar (include all padas/lines)
       
       If the first character is NOT "${targetChar}":
