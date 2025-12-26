@@ -55,7 +55,7 @@ const App: React.FC = () => {
                 <span className="text-saffron block">जीत की तैयारी</span>
               </h2>
               <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto font-medium leading-relaxed">
-                हमारी एआई के साथ संस्कृत श्लोक अंताक्षरी खेलकर अपने ज्ञान की परीक्षा लें और अभ्यास करें।
+                हमारी एआई के साथ संस्कृत श्लोक अन्त्याक्षरी खेलकर अपने ज्ञान की परीक्षा लें और अभ्यास करें।
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 pt-4">
                 <button 

@@ -21,6 +21,10 @@ const GameInterface: React.FC = () => {
   const [status, setStatus] = useState<GameStatus>(GameStatus.PLAYING);
   const [inputValue, setInputValue] = useState('');
   const [score, setScore] = useState(0);
+  const [usedShlokas, setUsedShlokas] = useState<Set<string>>(() => {
+    const initialShloka = getRandomInitialShloka();
+    return new Set([initialShloka.text.trim().toLowerCase()]);
+  });
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -43,6 +47,22 @@ const GameInterface: React.FC = () => {
   const processTurn = async (input: string) => {
     const tempId = Date.now().toString();
     
+    // Normalize input for comparison
+    const normalizedInput = input.trim().toLowerCase();
+    
+    // Check if shloka has been used before
+    if (usedShlokas.has(normalizedInput)) {
+      const errorMsg: GameMessage = {
+        id: tempId,
+        sender: 'system',
+        content: 'यह श्लोक पहले ही बोला जा चुका है! कृपया कोई अन्य श्लोक बताएं। (This shloka has already been used! Please provide a different shloka.)',
+        timestamp: Date.now()
+      };
+      setMessages(prev => [...prev, errorMsg]);
+      setInputValue('');
+      return;
+    }
+    
     // Preliminary user message
     const userMsg: GameMessage = {
       id: tempId,
@@ -64,6 +84,14 @@ const GameInterface: React.FC = () => {
     const result = await validateAndGetAiResponse(input, currentTargetChar, history);
 
     if (result.isValid && result.shlokaDetails && result.aiResponse) {
+      // Add both user's shloka and AI's response to used shlokas set
+      setUsedShlokas(prev => {
+        const newSet = new Set(prev);
+        newSet.add(result.shlokaDetails!.text.trim().toLowerCase());
+        newSet.add(result.aiResponse!.text.trim().toLowerCase());
+        return newSet;
+      });
+      
       const updatedUserMsg: GameMessage = {
         ...userMsg,
         shloka: result.shlokaDetails,
