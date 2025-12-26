@@ -11,21 +11,22 @@ const normalizeText = (text: string): string => {
   return text
     .replace(/[।॥\|॰॰०१२३४५६७८९0-9\.]/g, '') // Remove punctuation and numbers
     .replace(/\s+/g, ' ') // Normalize whitespace
-    .trim()
-    .toLowerCase();
+    .trim();
 };
 
 /**
- * Extract words from Sanskrit text
+ * Extract words from Sanskrit text (minimum 2 characters per word)
  */
 const extractWords = (text: string): string[] => {
   const normalized = normalizeText(text);
-  return normalized.split(' ').filter(word => word.length > 0);
+  return normalized.split(' ').filter(word => word.length >= 2);
 };
 
 /**
  * Check if user's input matches a shloka from the database
- * Requires at least 2 words to match
+ * Requires:
+ * - First word must match closely (since this is antakshari)
+ * - At least 50% of user's words must match
  */
 const findMatchingShloka = (userInput: string, requiredStartChar: string): ShlokaEntry | null => {
   const userWords = extractWords(userInput);
@@ -40,6 +41,10 @@ const findMatchingShloka = (userInput: string, requiredStartChar: string): Shlok
     return null; // Doesn't start with required character
   }
 
+  const userFirstWord = userWords[0];
+  let bestMatch: ShlokaEntry | null = null;
+  let bestMatchScore = 0;
+
   for (const entry of SHLOKA_DATABASE) {
     const dbWords = extractWords(entry.text);
     
@@ -49,21 +54,44 @@ const findMatchingShloka = (userInput: string, requiredStartChar: string): Shlok
       continue; // Skip shlokas that don't start with required character
     }
     
-    // Count matching words
-    let matchCount = 0;
-    for (const userWord of userWords) {
+    if (dbWords.length === 0) continue;
+    
+    // CRITICAL: First word must match closely (high similarity)
+    const firstWordSimilarity = levenshteinSimilarity(userFirstWord, dbWords[0]);
+    if (firstWordSimilarity < 0.7) {
+      continue; // First word doesn't match well enough
+    }
+    
+    // Count matching words (excluding first word which we already checked)
+    let matchCount = 1; // First word already matched
+    for (let i = 1; i < userWords.length; i++) {
+      const userWord = userWords[i];
       if (dbWords.some(dbWord => 
-        dbWord.includes(userWord) || userWord.includes(dbWord) || 
-        levenshteinSimilarity(userWord, dbWord) > 0.8
+        levenshteinSimilarity(userWord, dbWord) > 0.75
       )) {
         matchCount++;
       }
     }
     
-    // If at least 2 words match, consider it a match
-    if (matchCount >= 2) {
-      return entry;
+    // Calculate match percentage
+    const matchPercentage = matchCount / userWords.length;
+    
+    // Require at least 50% of words to match AND at least 3 matching words (or all if less than 3)
+    const minMatches = Math.min(3, userWords.length);
+    if (matchPercentage >= 0.5 && matchCount >= minMatches) {
+      // Use combined score: first word similarity + match percentage
+      const score = firstWordSimilarity + matchPercentage;
+      if (score > bestMatchScore) {
+        bestMatchScore = score;
+        bestMatch = entry;
+      }
     }
+  }
+  
+  // Only return if we have a good match (score > 1.4 means good first word + good overall match)
+  if (bestMatch && bestMatchScore > 1.4) {
+    console.log(`Local match found with score ${bestMatchScore.toFixed(2)}`);
+    return bestMatch;
   }
   
   return null;
@@ -164,6 +192,9 @@ export const lookupShlokaLocally = (
   }
   
   console.log('✓ Found shloka in local database!');
+  console.log('  User input:', trimmedInput.substring(0, 50) + '...');
+  console.log('  Matched to:', matchedEntry.text.substring(0, 50) + '...');
+  console.log('  Next char:', matchedEntry.nextChar);
   
   // Get AI's response shloka starting with the matched entry's nextChar
   const aiShlokaEntry = getRandomShlokaStartingWith(matchedEntry.nextChar, previousShlokas);
@@ -171,10 +202,11 @@ export const lookupShlokaLocally = (
   if (!aiShlokaEntry) {
     // No local AI response found, but user's shloka was valid
     // Return partial result - AI will need to provide response
+    // NOTE: We show the matched database entry text (the "correct" shloka)
     return {
       found: true,
       userShloka: {
-        text: matchedEntry.text,
+        text: matchedEntry.text, // Show the full correct shloka from database
         translation: '',
         lastChar: matchedEntry.nextChar
       }
@@ -184,7 +216,7 @@ export const lookupShlokaLocally = (
   return {
     found: true,
     userShloka: {
-      text: matchedEntry.text,
+      text: matchedEntry.text, // Show the full correct shloka from database
       translation: '',
       lastChar: matchedEntry.nextChar
     },

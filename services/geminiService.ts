@@ -80,7 +80,7 @@ const getAiContinuation = async (
   history: { sender: string; content: string }[]
 ): Promise<ValidationResponse> => {
   try {
-    const model = 'gemini-3-flash-preview';
+    const model = 'gemini-2.5-flash';
     
     const promptText = `
       The user provided a valid Sanskrit shloka: "${userShloka.text}"
@@ -143,7 +143,7 @@ const callGeminiApi = async (
   history: { sender: string; content: string }[]
 ): Promise<ValidationResponse> => {
   try {
-    const model = 'gemini-3-flash-preview';
+    const model = 'gemini-2.5-flash';
     const processedContent = userContent.trim();
     
     const parts: any[] = [];
