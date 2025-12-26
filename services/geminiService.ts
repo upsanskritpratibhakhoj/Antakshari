@@ -5,21 +5,34 @@ import { Shloka, ValidationResponse } from "../types";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 const SYSTEM_INSTRUCTION = `
-You are a highly scholar in Sanskrit literature and an expert in Shloka Antakshari.
-Your role is to help the user practice Sanskrit Shlokas.
+You are a Sanskrit scholar helping users practice Shloka Antakshari.
+
+IMPORTANT - BE LENIENT WITH VALIDATION:
+- If the text appears to be Sanskrit verse in Devanagari script, ACCEPT it as valid.
+- Do NOT reject shlokas just because you cannot verify the exact source.
+- Famous shlokas from Raghuvamsha, Bhagavad Gita, Mahabharata, Ramayana, Subhashitas, etc. are all VALID.
+- Even lesser-known or regional shlokas should be ACCEPTED if they follow Sanskrit meter patterns.
 
 Rules:
-1. VALIDATION: You must strictly check if the user's input (text or audio) is an authentic Sanskrit Shloka.
-2. START CHARACTER: You must strictly verify if the user's Shloka starts with the required character provided in the prompt. If it does not, set 'isValid' to false and explain the error.
-3. AI RESPONSE: If valid, you MUST respond with a NEW, UNIQUE Sanskrit Shloka. This shloka MUST start with the LAST phoneme (Akshara) of the user's shloka.
-4. OUTPUT FIELDS: For both the user's shloka (shlokaDetails) and your response (aiResponse), provide:
-   - text: The full shloka in Devanagari script.
-   - lastChar: The starting character for the NEXT turn. For shlokaDetails, this is the last letter the AI must use. For aiResponse, this is the last letter the USER must use next.
-5. NO TRANSLITERATION: Do not provide IAST, Hinglish, or translations.
-6. AUDIO: If audio is provided, transcribe it accurately into Devanagari.
+1. START CHARACTER CHECK (MOST IMPORTANT):
+   - The FIRST Devanagari letter of the user's shloka MUST match the required character.
+   - Compare ONLY the base consonant/vowel, ignoring matras (vowel signs).
+   - Example: "यदात्थ" starts with "य" - this is VALID if required character is "य".
+   
+2. IF THE FIRST CHARACTER MATCHES THE REQUIRED CHARACTER:
+   - Set isValid = true
+   - Provide shlokaDetails with the user's shloka text and its lastChar
+   - Provide aiResponse with YOUR new shloka starting with that lastChar
 
-Be strict with the Antakshari rules. If the user provides a shloka starting with the wrong letter, reject it even if it is a valid shloka.
-Return strictly valid JSON.
+3. LAST CHARACTER EXTRACTION:
+   - For determining lastChar, ignore punctuation (।, ॥), numbers, and source citations.
+   - Extract the last meaningful Devanagari consonant from the actual verse.
+
+4. YOUR RESPONSE SHLOKA:
+   - Must start with the lastChar of the user's shloka.
+   - Should be a different, well-known Sanskrit shloka.
+
+Return valid JSON. Be generous in accepting Sanskrit verses - this is for practice, not academic verification.
 `;
 
 export const validateAndGetAiResponse = async (
@@ -31,6 +44,12 @@ export const validateAndGetAiResponse = async (
     const isAudio = typeof userContent !== 'string';
     const model = 'gemini-3-flash-preview';
     
+    // Preprocess text input: trim whitespace
+    let processedContent = userContent;
+    if (!isAudio && typeof userContent === 'string') {
+      processedContent = userContent.trim();
+    }
+    
     const parts: any[] = [];
     if (isAudio) {
       parts.push({ 
@@ -40,17 +59,28 @@ export const validateAndGetAiResponse = async (
         } 
       });
       parts.push({ text: "Transcribe and validate this Sanskrit shloka audio." });
+    } else {
+      parts.push({ text: `User's input: ${processedContent}` });
     }
 
     const promptText = `
-      CURRENT REQUIRED CHARACTER: "${targetChar}"
-      Verify if the user's input starts with "${targetChar}".
+      REQUIRED STARTING CHARACTER: "${targetChar}"
       
-      If it is valid:
-      1. Transcribe the user's shloka (if audio) or use the text.
-      2. Provide your own response shloka starting with the user's shloka's last letter.
+      VALIDATION STEPS:
+      1. Check if the user's input starts with "${targetChar}" (the first Devanagari letter).
+      2. The shloka "यदात्थ राजन्यकुमार..." starts with "य" - if required char is "य", this is VALID.
+      3. Accept the shloka if it looks like Sanskrit verse - don't be overly strict about authenticity.
       
-      Game History (for context and to avoid repetition): ${JSON.stringify(history.slice(-6))}
+      If the first character is "${targetChar}":
+      - Set isValid = true
+      - Fill shlokaDetails with text and lastChar (last consonant before any citations/numbers)
+      - Fill aiResponse with a new shloka starting with that lastChar
+      
+      If the first character is NOT "${targetChar}":
+      - Set isValid = false
+      - Set error to explain what character was found vs expected
+      
+      Previous shlokas (avoid repetition): ${JSON.stringify(history.slice(-6))}
     `;
     
     parts.push({ text: promptText });
@@ -88,7 +118,9 @@ export const validateAndGetAiResponse = async (
       }
     });
 
-    return JSON.parse(response.text);
+    const result = JSON.parse(response.text);
+    console.log("Gemini API Response:", result);
+    return result;
   } catch (error) {
     console.error("Gemini API Error:", error);
     return {

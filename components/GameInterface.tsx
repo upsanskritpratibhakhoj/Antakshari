@@ -101,6 +101,7 @@ const GameInterface: React.FC = () => {
         return [...filtered, updatedUserMsg, aiMsg];
       });
     } else {
+      // Show the actual error from AI if available, otherwise show generic message
       const errorMsg: GameMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'system',
