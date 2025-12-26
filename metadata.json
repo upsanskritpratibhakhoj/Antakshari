@@ -1,0 +1,8 @@
+
+{
+  "name": "Sanskrit Shloka Antakshari",
+  "description": "A traditional yet modern game to practice and compete in Sanskrit Shloka Antakshari. Challenge the AI, learn meanings, and master the art of Sanskrit verse.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
