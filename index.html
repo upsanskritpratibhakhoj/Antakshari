@@ -27,6 +27,32 @@
     .border-saffron {
       border-color: #ed8936;
     }
+    
+    /* Mobile optimizations */
+    @media (max-width: 640px) {
+      body {
+        font-size: 14px;
+      }
+      /* Improve touch targets */
+      button {
+        min-height: 44px;
+      }
+      /* Better text wrapping on mobile */
+      p, li {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+    }
+    
+    /* Smooth scrolling */
+    html {
+      scroll-behavior: smooth;
+    }
+    
+    /* Prevent horizontal scroll on mobile */
+    body {
+      overflow-x: hidden;
+    }
   </style>
 <script type="importmap">
 {
