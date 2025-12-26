@@ -119,7 +119,8 @@ const App: React.FC = () => {
           <div className="devanagari text-xl sm:text-2xl text-saffron mb-3 sm:mb-4">
             ॐ सर्वे भवन्तु सुखिनः
           </div>
-          <p className="text-xs sm:text-sm">© 2024 Sanskrit Shloka Antakshari. Dedicated to the preservation of Vedic knowledge.</p>
+          <p className="text-xs sm:text-sm mb-2">© {new Date().getFullYear()} Sanskrit Shloka Antakshari. Dedicated to the preservation of Vedic knowledge.</p>
+          <p className="text-xs text-gray-500">Created by <span className="text-orange-400 font-semibold">Jagdanand Jha</span> & <span className="text-orange-400 font-semibold">Jayesh Krishna</span></p>
         </div>
       </footer>
     </div>
