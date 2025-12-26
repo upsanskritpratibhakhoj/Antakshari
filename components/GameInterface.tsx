@@ -3,22 +3,12 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Shloka, GameMessage, GameStatus, ValidationResponse } from '../types';
 import { INITIAL_SHLOKA } from '../constants';
 import { validateAndGetAiResponse } from '../services/geminiService';
+import { 
+  startSpeechRecognition, 
+  stopSpeechRecognition, 
+  isSpeechRecognitionSupported 
+} from '../services/speechRecognitionService';
 import ShlokaDisplay from './ShlokaDisplay';
-
-const blobToBase64 = (blob: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result.split(',')[1]);
-      } else {
-        reject(new Error('Failed to convert blob to base64'));
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-};
 
 const GameInterface: React.FC = () => {
   const [messages, setMessages] = useState<GameMessage[]>([
@@ -33,11 +23,10 @@ const GameInterface: React.FC = () => {
   const [status, setStatus] = useState<GameStatus>(GameStatus.PLAYING);
   const [inputValue, setInputValue] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState(''); // Live transcript while speaking
   const [score, setScore] = useState(0);
   
   const scrollRef = useRef<HTMLDivElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
 
   // Find the last shloka in history to determine the target character
   const currentTargetChar = useMemo(() => {
@@ -55,15 +44,14 @@ const GameInterface: React.FC = () => {
     }
   }, [messages, status]);
 
-  const processTurn = async (input: string | { data: string; mimeType: string }) => {
-    const isAudio = typeof input !== 'string';
+  const processTurn = async (input: string) => {
     const tempId = Date.now().toString();
     
     // Preliminary user message
     const userMsg: GameMessage = {
       id: tempId,
       sender: 'user',
-      content: isAudio ? "Reciting..." : input,
+      content: input,
       timestamp: Date.now()
     };
 
@@ -76,6 +64,7 @@ const GameInterface: React.FC = () => {
       content: m.shloka?.text || m.content 
     }));
     
+    // Now we always send text (speech is transcribed locally first)
     const result = await validateAndGetAiResponse(input, currentTargetChar, history);
 
     if (result.isValid && result.shlokaDetails && result.aiResponse) {
@@ -108,11 +97,7 @@ const GameInterface: React.FC = () => {
         content: result.error || `Please provide a valid Sanskrit shloka starting with '${currentTargetChar}'.`,
         timestamp: Date.now()
       };
-      setMessages(prev => {
-        // If it was audio, we keep the "Reciting..." text but mark it as invalid/system error
-        // If text, we just append the error
-        return [...prev, errorMsg];
-      });
+      setMessages(prev => [...prev, errorMsg]);
     }
     setStatus(GameStatus.PLAYING);
   };
@@ -123,42 +108,70 @@ const GameInterface: React.FC = () => {
     processTurn(inputValue);
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const base64Data = await blobToBase64(audioBlob);
-        processTurn({ data: base64Data, mimeType: 'audio/webm' });
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      console.error("Microphone access denied", err);
+  const startRecording = () => {
+    if (!isSpeechRecognitionSupported()) {
       const errorMsg: GameMessage = {
         id: Date.now().toString(),
         sender: 'system',
-        content: "Microphone access denied. Please enable permissions to speak.",
+        content: "Speech recognition is not supported in this browser. Please use Chrome or Edge, or type your shloka instead.",
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, errorMsg]);
+      return;
+    }
+
+    setLiveTranscript('');
+    setInputValue('');
+    
+    const started = startSpeechRecognition({
+      onStart: () => {
+        setIsRecording(true);
+        console.log('Speech recognition started');
+      },
+      onResult: (transcript, isFinal) => {
+        // Show live transcript in the input field
+        setLiveTranscript(transcript);
+      },
+      onEnd: (result) => {
+        setIsRecording(false);
+        setLiveTranscript('');
+        
+        if (result.success && result.transcript.trim()) {
+          // Send the transcribed text as regular text input
+          console.log('Transcribed:', result.transcript);
+          processTurn(result.transcript.trim());
+        } else {
+          const errorMsg: GameMessage = {
+            id: Date.now().toString(),
+            sender: 'system',
+            content: result.error || "Could not transcribe speech. Please try again or type your shloka.",
+            timestamp: Date.now()
+          };
+          setMessages(prev => [...prev, errorMsg]);
+        }
+      },
+      onError: (error) => {
+        setIsRecording(false);
+        setLiveTranscript('');
+        const errorMsg: GameMessage = {
+          id: Date.now().toString(),
+          sender: 'system',
+          content: error,
+          timestamp: Date.now()
+        };
+        setMessages(prev => [...prev, errorMsg]);
+      }
+    }, 'hi-IN'); // Hindi - closest to Sanskrit
+
+    if (!started) {
+      setIsRecording(false);
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+    if (isRecording) {
+      stopSpeechRecognition();
+      // The onEnd callback will handle the result
     }
   };
 
@@ -220,22 +233,34 @@ const GameInterface: React.FC = () => {
 
       {/* Input Area */}
       <div className="p-5 bg-white border-t border-orange-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        {/* Live Transcript Display */}
+        {isRecording && liveTranscript && (
+          <div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg max-w-3xl mx-auto">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide">Live Transcription</span>
+            </div>
+            <p className="text-gray-700 devanagari">{liveTranscript}</p>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="flex gap-3 items-center max-w-3xl mx-auto">
           <div className="relative flex-1 flex items-center bg-gray-50 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-orange-400/50 transition-all px-4 group">
              <input
               type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={isRecording ? "Listening..." : `Enter shloka starting with '${currentTargetChar}'`}
-              className="flex-1 py-4 bg-transparent focus:outline-none text-gray-700 placeholder-gray-400 font-medium"
+              value={isRecording ? liveTranscript : inputValue}
+              onChange={(e) => !isRecording && setInputValue(e.target.value)}
+              placeholder={isRecording ? "🎤 Listening... (speak now)" : `Enter shloka starting with '${currentTargetChar}'`}
+              className={`flex-1 py-4 bg-transparent focus:outline-none placeholder-gray-400 font-medium ${isRecording ? 'text-orange-600 devanagari' : 'text-gray-700'}`}
               disabled={status === GameStatus.LOADING || isRecording}
+              readOnly={isRecording}
             />
             <div className="flex items-center gap-4 border-l border-gray-200 ml-4 pl-4 h-8">
               <button
                 type="button"
                 onClick={isRecording ? stopRecording : startRecording}
                 className={`transition-all ${isRecording ? 'text-red-500 scale-125 animate-pulse' : 'text-gray-400 hover:text-orange-500 hover:scale-110'}`}
-                title={isRecording ? "Stop Recording" : "Record Shloka"}
+                title={isRecording ? "Stop & Submit" : "Record Shloka"}
                 disabled={status === GameStatus.LOADING}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -259,7 +284,7 @@ const GameInterface: React.FC = () => {
           </button>
         </form>
         <p className="mt-3 text-[9px] text-gray-400 text-center uppercase tracking-[0.2em] font-bold">
-          Sanskrit Shloka Antakshari Practice
+          Sanskrit Shloka Antakshari Practice • Voice uses local transcription (free & unlimited)
         </p>
       </div>
     </div>

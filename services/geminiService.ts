@@ -8,10 +8,10 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 const SYSTEM_INSTRUCTION = `
 You are a Sanskrit scholar helping users practice Shloka Antakshari.
 
-CRITICAL RULES - READ CAREFULLY:
+CRITICAL RULES:
 
 1. BE LENIENT WITH VALIDATION:
-   - If the text/audio appears to be Sanskrit verse, ACCEPT it as valid.
+   - If the text appears to be Sanskrit verse, ACCEPT it as valid.
    - Do NOT reject shlokas just because you cannot verify the exact source.
    - Famous shlokas from any Sanskrit text (Raghuvamsha, Gita, Mahabharata, etc.) are VALID.
 
@@ -20,18 +20,11 @@ CRITICAL RULES - READ CAREFULLY:
    - Compare the base consonant/vowel only.
    - If the first letter matches, set isValid = true.
 
-3. FOR AUDIO INPUT - VERY IMPORTANT:
-   - First transcribe the audio accurately into Devanagari.
-   - Then check if the transcription starts with the required character.
-   - Be generous - if the pronunciation sounds like it starts with the required letter, ACCEPT it.
-   - Sanskrit pronunciation varies - focus on the intended sound.
-   - DO NOT reject audio just because transcription is imperfect.
-
-4. LAST CHARACTER EXTRACTION:
+3. LAST CHARACTER EXTRACTION:
    - Ignore punctuation (।, ॥), numbers, and source citations.
    - Extract the last meaningful Devanagari consonant from the verse.
 
-5. AI RESPONSE:
+4. AI RESPONSE:
    - Must start with the lastChar of the user's shloka.
    - Should be a well-known Sanskrit shloka.
 
@@ -39,46 +32,42 @@ Return valid JSON. Be GENEROUS in accepting Sanskrit verses - this is for practi
 `;
 
 export const validateAndGetAiResponse = async (
-  userContent: string | { data: string; mimeType: string },
+  userContent: string,
   targetChar: string,
   history: { sender: string; content: string }[]
 ): Promise<ValidationResponse> => {
-  const isAudio = typeof userContent !== 'string';
+  // Try local database lookup first (saves API tokens!)
+  const previousShlokas = history.map(h => h.content);
+  const localResult = lookupShlokaLocally(userContent, targetChar, previousShlokas);
   
-  // For text input, try local database lookup first (saves API tokens!)
-  if (!isAudio && typeof userContent === 'string') {
-    const previousShlokas = history.map(h => h.content);
-    const localResult = lookupShlokaLocally(userContent, targetChar, previousShlokas);
-    
-    // If found locally with complete response, return immediately
-    if (localResult.found && localResult.userShloka && localResult.aiShloka) {
-      console.log('✓ Using local database - saved API tokens!');
-      return {
-        isValid: true,
-        shlokaDetails: localResult.userShloka,
-        aiResponse: localResult.aiShloka
-      };
-    }
-    
-    // If local lookup found a validation error (wrong starting char), return it
-    if (localResult.error) {
-      return {
-        isValid: false,
-        error: localResult.error
-      };
-    }
-    
-    // If user shloka was found but no AI response available locally, 
-    // we still need AI for the response
-    if (localResult.found && localResult.userShloka && !localResult.aiShloka) {
-      console.log('✓ User shloka found locally, getting AI response for continuation...');
-      return await getAiContinuation(localResult.userShloka, history);
-    }
-    
-    console.log('→ Shloka not in local database, using AI...');
+  // If found locally with complete response, return immediately
+  if (localResult.found && localResult.userShloka && localResult.aiShloka) {
+    console.log('✓ Using local database - saved API tokens!');
+    return {
+      isValid: true,
+      shlokaDetails: localResult.userShloka,
+      aiResponse: localResult.aiShloka
+    };
   }
   
-  // Fallback to AI for audio input or when not found locally
+  // If local lookup found a validation error (wrong starting char), return it
+  if (localResult.error) {
+    return {
+      isValid: false,
+      error: localResult.error
+    };
+  }
+  
+  // If user shloka was found but no AI response available locally, 
+  // we still need AI for the response
+  if (localResult.found && localResult.userShloka && !localResult.aiShloka) {
+    console.log('✓ User shloka found locally, getting AI response for continuation...');
+    return await getAiContinuation(localResult.userShloka, history);
+  }
+  
+  console.log('→ Shloka not in local database, using AI...');
+  
+  // Fallback to AI when not found locally
   return await callGeminiApi(userContent, targetChar, history);
 };
 
@@ -146,92 +135,40 @@ const getAiContinuation = async (
 };
 
 /**
- * Full AI validation and response (used for audio or when local lookup fails)
+ * Full AI validation and response (used when local lookup fails)
  */
 const callGeminiApi = async (
-  userContent: string | { data: string; mimeType: string },
+  userContent: string,
   targetChar: string,
   history: { sender: string; content: string }[]
 ): Promise<ValidationResponse> => {
   try {
-    const isAudio = typeof userContent !== 'string';
     const model = 'gemini-3-flash-preview';
-    
-    // Preprocess text input: trim whitespace
-    let processedContent = userContent;
-    if (!isAudio && typeof userContent === 'string') {
-      processedContent = userContent.trim();
-    }
+    const processedContent = userContent.trim();
     
     const parts: any[] = [];
+    parts.push({ text: `User's input: ${processedContent}` });
     
-    if (isAudio) {
-      // For audio input, add the audio data first
-      parts.push({ 
-        inlineData: {
-          data: userContent.data,
-          mimeType: userContent.mimeType 
-        } 
-      });
+    const textPrompt = `
+      REQUIRED STARTING CHARACTER: "${targetChar}"
       
-      // Special prompt for audio - more detailed instructions
-      const audioPrompt = `
-        TASK: Transcribe this Sanskrit audio and validate for Antakshari game.
-        
-        REQUIRED STARTING CHARACTER: "${targetChar}"
-        
-        STEP 1 - TRANSCRIPTION:
-        - Listen carefully to the audio
-        - Transcribe the Sanskrit shloka into Devanagari script
-        - Be accurate with the transcription
-        
-        STEP 2 - VALIDATION:
-        - Check if the FIRST letter of the transcribed shloka is "${targetChar}"
-        - Be lenient: if the shloka sounds like it starts with "${targetChar}", accept it
-        - Sanskrit pronunciation can vary - focus on the intended first consonant/vowel
-        
-        STEP 3 - RESPONSE:
-        If the shloka starts with "${targetChar}" (isValid = true):
-        - Put the transcribed text in shlokaDetails.text
-        - Extract the last meaningful consonant for shlokaDetails.lastChar
-        - Provide your own shloka starting with that lastChar in aiResponse
-        
-        If the shloka does NOT start with "${targetChar}" (isValid = false):
-        - Still provide the transcription in the error message
-        - Explain what letter was detected
-        
-        IMPORTANT: Be generous in accepting the audio. If it sounds like a valid Sanskrit verse 
-        starting with "${targetChar}", mark it as valid.
-        
-        Previous shlokas (avoid repetition): ${JSON.stringify(history.slice(-4))}
-      `;
+      VALIDATION STEPS:
+      1. Check if the user's input starts with "${targetChar}" (the first Devanagari letter).
+      2. Accept the shloka if it looks like Sanskrit verse - don't be overly strict.
       
-      parts.push({ text: audioPrompt });
-    } else {
-      // Text input prompt
-      parts.push({ text: `User's input: ${processedContent}` });
+      If the first character is "${targetChar}":
+      - Set isValid = true
+      - Fill shlokaDetails with text and lastChar (last consonant before any citations/numbers)
+      - Fill aiResponse with a new shloka starting with that lastChar
       
-      const textPrompt = `
-        REQUIRED STARTING CHARACTER: "${targetChar}"
-        
-        VALIDATION STEPS:
-        1. Check if the user's input starts with "${targetChar}" (the first Devanagari letter).
-        2. Accept the shloka if it looks like Sanskrit verse - don't be overly strict.
-        
-        If the first character is "${targetChar}":
-        - Set isValid = true
-        - Fill shlokaDetails with text and lastChar (last consonant before any citations/numbers)
-        - Fill aiResponse with a new shloka starting with that lastChar
-        
-        If the first character is NOT "${targetChar}":
-        - Set isValid = false
-        - Set error to explain what character was found vs expected
-        
-        Previous shlokas (avoid repetition): ${JSON.stringify(history.slice(-6))}
-      `;
+      If the first character is NOT "${targetChar}":
+      - Set isValid = false
+      - Set error to explain what character was found vs expected
       
-      parts.push({ text: textPrompt });
-    }
+      Previous shlokas (avoid repetition): ${JSON.stringify(history.slice(-6))}
+    `;
+    
+    parts.push({ text: textPrompt });
 
     const response = await ai.models.generateContent({
       model,

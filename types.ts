@@ -27,4 +27,5 @@ export interface ValidationResponse {
   error?: string;
   shlokaDetails?: Shloka;
   aiResponse?: Shloka;
+  transcription?: string; // For audio input - the transcribed text
 }
