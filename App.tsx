@@ -19,7 +19,7 @@ const App: React.FC = () => {
               <span className="devanagari text-2xl font-bold">श</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-800 tracking-tight">Antakshari</h1>
+              <h1 className="text-xl font-bold text-gray-800 tracking-tight">श्लोक चक्र</h1>
               <p className="text-xs text-saffron font-bold tracking-widest uppercase">Sanskrit Shloka Game</p>
             </div>
           </div>
@@ -49,14 +49,13 @@ const App: React.FC = () => {
       <main className="flex-1 container mx-auto px-4 py-8">
         {view === 'home' && (
           <div className="max-w-4xl mx-auto space-y-12 animate-fadeIn">
-            <section className="text-center space-y-6 py-10">
-              <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">
-                Master the Art of <br/>
-                <span className="text-saffron">Sanskrit Shlokas</span>
+            <section className="text-center space-y-6 py-10 px-4">
+              <h2 className="text-4xl md:text-5xl font-extrabold leading-tight">
+                <span className="text-gray-900 block mb-2">संस्कृत श्लोकों से</span>
+                <span className="text-saffron block">जीत की तैयारी</span>
               </h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Test your knowledge and practice Sanskrit Shloka Antakshari against our learned AI. 
-                Learn meanings, improve pronunciation, and preserve the ancient heritage.
+              <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                हमारी एआई के साथ संस्कृत श्लोक अंताक्षरी खेलकर अपने ज्ञान की परीक्षा लें और अभ्यास करें।
               </p>
               <div className="flex justify-center gap-4 pt-4">
                 <button 
@@ -77,7 +76,7 @@ const App: React.FC = () => {
             <div className="grid md:grid-cols-2 gap-8 pt-10">
               <div className="bg-white p-8 rounded-3xl shadow-lg border border-orange-50">
                 <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                  <span className="text-saffron">📜</span> Game Rules
+                  <span className="text-saffron">📜</span> खेल के नियम
                 </h3>
                 <ul className="space-y-4">
                   {RULES.map((rule, idx) => (
@@ -92,15 +91,15 @@ const App: React.FC = () => {
               </div>
               <div className="bg-saffron p-8 rounded-3xl shadow-lg text-white relative overflow-hidden">
                 <div className="relative z-10">
-                  <h3 className="text-2xl font-bold mb-6">Why Practice?</h3>
+                  <h3 className="text-2xl font-bold mb-6">अभ्यास क्यों करें?</h3>
                   <div className="space-y-4 opacity-95">
-                    <p className="font-medium">✨ Spiritual Enrichment</p>
-                    <p className="font-medium">✨ Linguistic Precision</p>
-                    <p className="font-medium">✨ Memory Enhancement</p>
-                    <p className="font-medium">✨ Cultural Connection</p>
+                    <p className="font-medium">✨ आध्यात्मिक समृद्धि</p>
+                    <p className="font-medium">✨ भाषाई सटीकता</p>
+                    <p className="font-medium">✨ स्मृति वृद्धि</p>
+                    <p className="font-medium">✨ सांस्कृतिक संबंध</p>
                   </div>
                   <div className="mt-8 pt-6 border-t border-white/20">
-                    <p className="italic text-sm">"The learning of Sanskrit is a journey into the soul of Indian civilization."</p>
+                    <p className="italic text-sm">"संस्कृत सीखना भारतीय सभ्यता की आत्मा में यात्रा है।"</p>
                   </div>
                 </div>
                 <div className="absolute -right-10 -bottom-10 text-9xl opacity-10 font-bold select-none">

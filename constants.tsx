@@ -8,9 +8,9 @@ export const INITIAL_SHLOKA = {
 };
 
 export const RULES = [
-  "Only authentic Sanskrit Shlokas are valid.",
-  "Your Shloka must start with the specific letter shown in the input box.",
-  "The challenge letter is derived from the last sound (Akshara) of the previous shloka.",
-  "Provide the shloka in Devanagari script or via voice recording.",
-  "Only Devanagari script is shown for a traditional practice experience."
+  "केवल प्रामाणिक संस्कृत श्लोक ही मान्य हैं।",
+  "आपका श्लोक इनपुट बॉक्स में दिखाए गए विशिष्ट अक्षर से शुरू होना चाहिए।",
+  "चुनौती का अक्षर पिछले श्लोक की अंतिम ध्वनि (अक्षर) से प्राप्त होता है।",
+  "देवनागरी लिपि में या वॉयस रिकॉर्डिंग के माध्यम से श्लोक प्रदान करें।",
+  "पारंपरिक अभ्यास अनुभव के लिए केवल देवनागरी लिपि दिखाई जाती है।"
 ];
