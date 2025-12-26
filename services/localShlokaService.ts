@@ -2,6 +2,58 @@ import { SHLOKA_DATABASE, ShlokaEntry } from '../data/shlokaDatabase';
 import { Shloka } from '../types';
 
 /**
+ * Characters that are difficult to start with in Antakshari
+ * If shloka ends with these, use the previous consonant instead
+ */
+const DIFFICULT_CHARS = ['ङ', 'ञ', 'ण', 'ट', 'ठ', 'ड', 'ढ', 'थ'];
+
+/**
+ * Vowel signs (matras) that should be stripped to get base consonant
+ */
+const VOWEL_SIGNS = ['ा', 'ि', 'ी', 'ु', 'ू', 'े', 'ै', 'ो', 'ौ', 'ं', 'ः', '्'];
+
+/**
+ * Extract the appropriate last character for Antakshari
+ * Rules:
+ * 1. Ignore punctuation, numbers, citations
+ * 2. If ends with halant (्), take the consonant before it
+ * 3. If the character is in DIFFICULT_CHARS, go to previous consonant
+ * 4. Strip vowel signs to get base consonant
+ */
+export const extractLastCharForAntakshari = (text: string): string => {
+  // Remove punctuation, numbers, and citations from the end
+  const cleaned = text.replace(/[।॥\|॰॰०१२३४५६७८९0-9\.\s\(\)]+$/g, '').trim();
+  
+  if (!cleaned) return '';
+  
+  // Convert to array of characters for easier traversal
+  const chars = Array.from(cleaned);
+  
+  // Start from the last character and work backwards
+  for (let i = chars.length - 1; i >= 0; i--) {
+    const char = chars[i];
+    
+    // Skip vowel signs and halant
+    if (VOWEL_SIGNS.includes(char)) {
+      continue;
+    }
+    
+    // Found a consonant/vowel
+    // Check if it's a difficult character
+    if (DIFFICULT_CHARS.includes(char)) {
+      // Continue to find the previous consonant
+      continue;
+    }
+    
+    // This is a valid character, return it
+    return char;
+  }
+  
+  // Fallback to last non-punctuation character
+  return chars[chars.length - 1] || '';
+};
+
+/**
  * Normalize Sanskrit text for comparison
  * - Removes extra whitespace
  * - Removes punctuation marks (।, ॥, etc.)
@@ -203,27 +255,31 @@ export const lookupShlokaLocally = (
     // No local AI response found, but user's shloka was valid
     // Return partial result - AI will need to provide response
     // NOTE: We show the matched database entry text (the "correct" shloka)
+    const userLastChar = extractLastCharForAntakshari(matchedEntry.text);
     return {
       found: true,
       userShloka: {
         text: matchedEntry.text, // Show the full correct shloka from database
         translation: '',
-        lastChar: matchedEntry.nextChar
+        lastChar: userLastChar
       }
     };
   }
+  
+  const userLastChar = extractLastCharForAntakshari(matchedEntry.text);
+  const aiLastChar = extractLastCharForAntakshari(aiShlokaEntry.text);
   
   return {
     found: true,
     userShloka: {
       text: matchedEntry.text, // Show the full correct shloka from database
       translation: '',
-      lastChar: matchedEntry.nextChar
+      lastChar: userLastChar
     },
     aiShloka: {
       text: aiShlokaEntry.text,
       translation: '',
-      lastChar: aiShlokaEntry.nextChar
+      lastChar: aiLastChar
     }
   };
 };

@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { Shloka, ValidationResponse } from "../types";
-import { lookupShlokaLocally } from "./localShlokaService";
+import { lookupShlokaLocally, extractLastCharForAntakshari } from "./localShlokaService";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
@@ -26,15 +26,19 @@ CRITICAL RULES:
    - If the user provided a partial shloka, return the complete verse.
    - If the user's shloka is slightly wrong, provide the full correct version.
 
-4. LAST CHARACTER EXTRACTION:
+4. LAST CHARACTER EXTRACTION (IMPORTANT):
    - Ignore punctuation (।, ॥), numbers, and source citations.
    - If the shloka ends with a halant (्), DO NOT use that consonant with halant.
    - Instead, use the consonant that comes BEFORE the halant.
+   - If the last character is one of these difficult characters: ङ, ञ, ण, ट, ठ, ड, ढ, थ - skip it and use the previous consonant.
+   - Strip vowel signs (ा, ि, ी, ु, ू, े, ै, ो, ौ, ं, ः) to get the base consonant.
    - Example: If shloka ends with "माधवम्", the lastChar should be "व" (not "म").
-   - Extract the last meaningful Devanagari consonant WITHOUT halant.
+   - Example: If shloka ends with "गीतिः", the lastChar should be "त" (not "ः").
+   - Example: If shloka ends with "प्रणः", since "ण" is difficult, use "प्र" → "प" as lastChar.
+   - Extract the last meaningful Devanagari consonant that is easy to start a new shloka with.
 
 5. AI RESPONSE:
-   - Must start with the lastChar of the user's shloka.
+   - Must start with the lastChar of the user's shloka (after applying the above rules).
    - Should be a COMPLETE well-known Sanskrit shloka with all padas/lines.
 
 Return valid JSON with FULL shlokas. Be GENEROUS in accepting Sanskrit verses - this is for practice!
@@ -169,7 +173,11 @@ const callGeminiApi = async (
       If the first character is "${targetChar}":
       - Set isValid = true
       - Fill shlokaDetails.text with the COMPLETE/FULL CORRECTED shloka (all padas/lines, not just what user typed)
-      - Fill shlokaDetails.lastChar: If shloka ends with halant (्), take the consonant BEFORE the halant. Example: "माधवम्" → lastChar is "व"
+      - Fill shlokaDetails.lastChar: 
+        * If shloka ends with halant (्), take the consonant BEFORE the halant. 
+        * If the ending character is ङ, ञ, ण, ट, ठ, ड, ढ, or थ (difficult characters), go to the previous consonant.
+        * Strip vowel signs (ा, ि, ी, ु, ू, े, ै, ो, ौ, ं, ः) to get the base consonant.
+        * Example: "माधवम्" → lastChar is "व", "गीतिः" → lastChar is "त", "प्रणः" → lastChar is "प"
       - Fill aiResponse with a COMPLETE Sanskrit shloka starting with that lastChar (include all padas/lines)
       
       If the first character is NOT "${targetChar}":
