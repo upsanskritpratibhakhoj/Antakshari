@@ -20,14 +20,20 @@ CRITICAL RULES:
    - Compare the base consonant/vowel only.
    - If the first letter matches, set isValid = true.
 
-3. LAST CHARACTER EXTRACTION:
+3. CORRECTED TEXT:
+   - In shlokaDetails.text, return the COMPLETE/FULL CORRECTED shloka with all padas/lines.
+   - Fix any spelling errors, missing diacritics, or formatting issues.
+   - If the user provided a partial shloka, return the complete verse.
+   - If the user's shloka is slightly wrong, provide the full correct version.
+
+4. LAST CHARACTER EXTRACTION:
    - Ignore punctuation (।, ॥), numbers, and source citations.
    - Extract the last meaningful Devanagari consonant from the verse.
-
-4. AI RESPONSE:
+5. AI RESPONSE:
    - Must start with the lastChar of the user's shloka.
-   - Should be a well-known Sanskrit shloka.
+   - Should be a COMPLETE well-known Sanskrit shloka with all padas/lines.
 
+Return valid JSON with FULL shlokas. Be GENEROUS in accepting Sanskrit verses - this is for practice!
 Return valid JSON. Be GENEROUS in accepting Sanskrit verses - this is for practice!
 `;
 
@@ -86,18 +92,18 @@ const getAiContinuation = async (
       The user provided a valid Sanskrit shloka: "${userShloka.text}"
       The last character is: "${userShloka.lastChar}"
       
-      Please provide a Sanskrit shloka that STARTS with "${userShloka.lastChar}".
+      Please provide a COMPLETE Sanskrit shloka (all padas/lines) that STARTS with "${userShloka.lastChar}".
       
       Previous shlokas (avoid repetition): ${JSON.stringify(history.slice(-6))}
       
-      Return ONLY the aiResponse object with text and lastChar.
+      Return ONLY the aiResponse object with the FULL shloka text and lastChar.
     `;
     
     const response = await ai.models.generateContent({
       model,
       contents: { parts: [{ text: promptText }] },
       config: {
-        systemInstruction: "You are a Sanskrit scholar. Provide a Sanskrit shloka starting with the given character. Return valid JSON with aiResponse containing text and lastChar.",
+        systemInstruction: "You are a Sanskrit scholar. Provide a COMPLETE Sanskrit shloka (all padas/lines) starting with the given character. Return valid JSON with aiResponse containing the full text and lastChar.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -158,12 +164,15 @@ const callGeminiApi = async (
       
       If the first character is "${targetChar}":
       - Set isValid = true
-      - Fill shlokaDetails with text and lastChar (last consonant before any citations/numbers)
-      - Fill aiResponse with a new shloka starting with that lastChar
+      - Fill shlokaDetails.text with the COMPLETE/FULL CORRECTED shloka (all padas/lines, not just what user typed)
+      - Fill shlokaDetails.lastChar with the last consonant before any citations/numbers
+      - Fill aiResponse with a COMPLETE Sanskrit shloka starting with that lastChar (include all padas/lines)
       
       If the first character is NOT "${targetChar}":
       - Set isValid = false
       - Set error to explain what character was found vs expected
+      
+      IMPORTANT: Return FULL shlokas with all lines/padas, not partial verses.
       
       Previous shlokas (avoid repetition): ${JSON.stringify(history.slice(-6))}
     `;
