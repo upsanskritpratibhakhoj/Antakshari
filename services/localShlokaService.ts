@@ -255,31 +255,31 @@ export const lookupShlokaLocally = (
     // No local AI response found, but user's shloka was valid
     // Return partial result - AI will need to provide response
     // NOTE: We show the matched database entry text (the "correct" shloka)
-    const userLastChar = extractLastCharForAntakshari(matchedEntry.text);
+    // Use the nextChar from the database instead of recalculating
     return {
       found: true,
       userShloka: {
         text: matchedEntry.text, // Show the full correct shloka from database
         translation: '',
-        lastChar: userLastChar
+        lastChar: matchedEntry.nextChar // Use the nextChar from database
       }
     };
   }
   
-  const userLastChar = extractLastCharForAntakshari(matchedEntry.text);
-  const aiLastChar = extractLastCharForAntakshari(aiShlokaEntry.text);
+  // Use the nextChar from the database instead of recalculating
+  // This ensures consistency with the database's pre-calculated values
   
   return {
     found: true,
     userShloka: {
       text: matchedEntry.text, // Show the full correct shloka from database
       translation: '',
-      lastChar: userLastChar
+      lastChar: matchedEntry.nextChar // Use the nextChar from database
     },
     aiShloka: {
       text: aiShlokaEntry.text,
       translation: '',
-      lastChar: aiLastChar
+      lastChar: aiShlokaEntry.nextChar // Use the nextChar from database
     }
   };
 };
