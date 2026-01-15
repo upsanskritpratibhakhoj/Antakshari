@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
 import GameInterface from './components/GameInterface';
+import HelpPage from './components/HelpPage';
 import { RULES } from './constants';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'home' | 'game' | 'learn'>('home');
+  const [view, setView] = useState<'home' | 'game' | 'learn' | 'help'>('home');
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -55,7 +56,7 @@ const App: React.FC = () => {
                 <span className="text-saffron block">जीत की तैयारी</span>
               </h2>
               <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto font-medium leading-relaxed">
-                हमारी एआई के साथ संस्कृत श्लोक अन्त्याक्षरी खेलकर अपने ज्ञान की परीक्षा लें और अभ्यास करें।
+                श्लोक अन्त्याक्षरी खेलकर अपने ज्ञान की परीक्षा लें और अभ्यास करें।
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 pt-4">
                 <button 
@@ -66,7 +67,7 @@ const App: React.FC = () => {
                 </button>
                 <button 
                   className="px-6 sm:px-8 py-3 sm:py-4 bg-white text-gray-700 border border-gray-200 rounded-xl font-bold text-base sm:text-lg hover:bg-gray-50 transition-all"
-                  onClick={() => window.scrollTo({ top: 800, behavior: 'smooth' })}
+                  onClick={() => setView('help')}
                 >
                   How to Play
                 </button>
@@ -93,13 +94,14 @@ const App: React.FC = () => {
                 <div className="relative z-10">
                   <h3 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">अभ्यास क्यों करें?</h3>
                   <div className="space-y-3 sm:space-y-4 opacity-95">
-                    <p className="font-medium text-sm sm:text-base">✨ आध्यात्मिक समृद्धि</p>
+                    <p className="font-medium text-sm sm:text-base">✨ प्रतियोगिता की तैयारी</p>
                     <p className="font-medium text-sm sm:text-base">✨ भाषाई सटीकता</p>
                     <p className="font-medium text-sm sm:text-base">✨ स्मृति वृद्धि</p>
-                    <p className="font-medium text-sm sm:text-base">✨ सांस्कृतिक संबंध</p>
+                    <p className="font-medium text-sm sm:text-base">✨ उच्चारण अभ्यास</p>
+                    <p className="font-medium text-sm sm:text-base">✨ प्रवाह और आत्मविश्वास विकसित करने हेतु</p>
                   </div>
                   <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-white/20">
-                    <p className="italic text-xs sm:text-sm">"संस्कृत सीखना भारतीय सभ्यता की आत्मा में यात्रा है।"</p>
+                    <p className="italic text-xs sm:text-sm">"संस्कृत सीखना भारतीय सभ्यता को जानने का मार्ग है।"</p>
                   </div>
                 </div>
                 <div className="absolute -right-10 -bottom-10 text-6xl sm:text-9xl opacity-10 font-bold select-none">
@@ -111,6 +113,8 @@ const App: React.FC = () => {
         )}
 
         {view === 'game' && <GameInterface />}
+
+        {view === 'help' && <HelpPage onBack={() => setView('home')} />}
       </main>
 
       {/* Footer */}

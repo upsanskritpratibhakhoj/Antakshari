@@ -213,7 +213,7 @@ const GameInterface: React.FC = () => {
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder={`Type in English (e.g., "dharma") or Devanagari - starting with '${currentTargetChar}'`}
+                placeholder={`श्लोक के आरंभिक ('${currentTargetChar}') से न्यूनतम दो पद लिखें।`}
                 className="flex-1 py-3 sm:py-4 bg-transparent focus:outline-none placeholder-gray-400 font-medium text-gray-700 text-sm sm:text-base"
                 disabled={status === GameStatus.LOADING}
               />
