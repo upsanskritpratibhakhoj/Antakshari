@@ -10,6 +10,7 @@
 export const shlokaAudioDatabase: Record<string, string> = {
   // Meghadutam shlokas
   "तस्मिन्नद्रौ कतिचिदबलाविप्रयुक्तः स कामी नीत्वा मासान् कनकवलयभ्रंशरिक्तप्रकोष्ठः । आषाढस्य प्रथमदिवसे मेघमाश्लिष्टसानुं वप्रक्रीडापरिणतगजप्रेक्षणीयं ददर्श॥ मेघदूतम्, पूर्वमेघः २॥": "https://raw.githubusercontent.com/upsanskritpratibhakhoj/shlokas_audio/main/audio/tasminnidro.mpeg",
+  "यां चिन्तयामि सततं मयि सा विरक्ता साऽप्यन्यमिच्छति जनं स जनोऽन्यसक्तः। अस्मत्कृते च परितुष्यति काचिदन्या  धिक् तां च तञ्च मदनञ्च इमाञ्च माञ्च ॥ नीतिशतकम् २ ॥" : "https://raw.githubusercontent.com/upsanskritpratibhakhoj/shlokas_audio/main/audio/yam_chintayami.mpeg"
   
   // Add more shloka-to-audio mappings here
   // Format: "shloka text": "CDN_URL",
