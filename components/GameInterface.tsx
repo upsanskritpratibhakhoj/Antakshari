@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Shloka, GameMessage, GameStatus, ValidationResponse } from '../types';
 import { getRandomInitialShloka } from '../constants';
 import { validateAndGetAiResponse } from '../services/geminiService';
+import { processUserInput, getTransliterationPreview, containsDevanagari } from '../services/transliterationService';
 import ShlokaDisplay from './ShlokaDisplay';
 
 const GameInterface: React.FC = () => {
@@ -25,6 +26,7 @@ const GameInterface: React.FC = () => {
     const initialShloka = getRandomInitialShloka();
     return new Set([initialShloka.text.trim().toLowerCase()]);
   });
+  const [transliterationPreview, setTransliterationPreview] = useState<string>('');
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -44,11 +46,24 @@ const GameInterface: React.FC = () => {
     }
   }, [messages, status]);
 
+  // Update transliteration preview when input changes
+  useEffect(() => {
+    if (inputValue.trim() && !containsDevanagari(inputValue)) {
+      const preview = getTransliterationPreview(inputValue);
+      setTransliterationPreview(preview.isTransliterated ? preview.devanagari : '');
+    } else {
+      setTransliterationPreview('');
+    }
+  }, [inputValue]);
+
   const processTurn = async (input: string) => {
     const tempId = Date.now().toString();
     
+    // Process input through transliteration if it's in Roman script
+    const processedInput = processUserInput(input);
+    
     // Normalize input for comparison
-    const normalizedInput = input.trim().toLowerCase();
+    const normalizedInput = processedInput.trim().toLowerCase();
     
     // Check if shloka has been used before
     if (usedShlokas.has(normalizedInput)) {
@@ -67,12 +82,13 @@ const GameInterface: React.FC = () => {
     const userMsg: GameMessage = {
       id: tempId,
       sender: 'user',
-      content: input,
+      content: processedInput,
       timestamp: Date.now()
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
+    setTransliterationPreview('');
     setStatus(GameStatus.LOADING);
 
     const history = messages.map(m => ({ 
@@ -81,7 +97,7 @@ const GameInterface: React.FC = () => {
     }));
     
     // Now we always send text (speech is transcribed locally first)
-    const result = await validateAndGetAiResponse(input, currentTargetChar, history);
+    const result = await validateAndGetAiResponse(processedInput, currentTargetChar, history);
 
     if (result.isValid && result.shlokaDetails && result.aiResponse) {
       // Add both user's shloka and AI's response to used shlokas set
@@ -191,20 +207,28 @@ const GameInterface: React.FC = () => {
       {/* Input Area */}
       <div className="p-3 sm:p-5 bg-white border-t border-orange-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
         <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3 items-center max-w-3xl mx-auto">
-          <div className="relative flex-1 flex items-center bg-gray-50 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-orange-400/50 transition-all px-3 sm:px-4 group">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={`श्लोक के आरंभिक ('${currentTargetChar}') से न्यूनतम दो पद लिखें।`}
-              className="flex-1 py-3 sm:py-4 bg-transparent focus:outline-none placeholder-gray-400 font-medium text-gray-700 text-sm sm:text-base"
-              disabled={status === GameStatus.LOADING}
-            />
-            <div className="flex items-center gap-2 sm:gap-4 border-l border-gray-200 ml-2 sm:ml-4 pl-2 sm:pl-4 h-6 sm:h-8">
-              <div className="text-orange-500 font-black text-lg sm:text-xl select-none devanagari pb-0.5 min-w-[1rem] sm:min-w-[1.2rem] text-center">
-                {currentTargetChar}
+          <div className="relative flex-1 flex flex-col bg-gray-50 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-orange-400/50 transition-all px-3 sm:px-4 group">
+            <div className="flex items-center w-full">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={`Type in English (e.g., "dharma") or Devanagari - starting with '${currentTargetChar}'`}
+                className="flex-1 py-3 sm:py-4 bg-transparent focus:outline-none placeholder-gray-400 font-medium text-gray-700 text-sm sm:text-base"
+                disabled={status === GameStatus.LOADING}
+              />
+              <div className="flex items-center gap-2 sm:gap-4 border-l border-gray-200 ml-2 sm:ml-4 pl-2 sm:pl-4 h-6 sm:h-8">
+                <div className="text-orange-500 font-black text-lg sm:text-xl select-none devanagari pb-0.5 min-w-[1rem] sm:min-w-[1.2rem] text-center">
+                  {currentTargetChar}
+                </div>
               </div>
             </div>
+            {transliterationPreview && (
+              <div className="pb-2 -mt-1 text-xs sm:text-sm text-orange-600 devanagari truncate">
+                <span className="text-gray-400 text-[10px] mr-1">Preview:</span>
+                {transliterationPreview}
+              </div>
+            )}
           </div>
           <button
             type="submit"
