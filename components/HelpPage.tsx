@@ -65,7 +65,9 @@ const HelpPage: React.FC<HelpPageProps> = ({ onBack }) => {
             { step: 1, title: 'वेबसाइट खोलें', desc: 'https://shlok.upsanskritpratibhakhoj.com' },
             { step: 2, title: 'नया खेल प्रारम्भ करें', desc: 'Start New Game पर क्लिक करें।' },
             { step: 3, title: 'प्रणाली का श्लोक', desc: 'प्रणाली स्वयं एक श्लोक लिखेगी और अगले श्लोक के लिए आरम्भिक अक्षर देगी।' },
-            { step: 4, title: 'अपना श्लोक लिखें', desc: 'दिए गए अक्षर से शुरू होने वाला निर्धारित ग्रन्थ का श्लोक लिखें।' }
+            { step: 4, title: 'अपना श्लोक लिखें', desc: 'दिए गए अक्षर से शुरू होने वाला निर्धारित ग्रन्थ का श्लोक लिखें।'},
+              {step :5, title: "महत्वपूर्ण नोट:", desc: "टैब मिनिमाइज करने पर गेम समाप्त होकर नया गेम प्रारम्भ हो जाता है।",
+             }
           ].map(({ step, title, desc }) => (
             <div key={step} className="flex gap-4 items-start">
               <div className="w-12 h-12 rounded-full bg-saffron text-white flex items-center justify-center font-bold text-xl flex-shrink-0 shadow-md">

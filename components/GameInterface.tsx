@@ -96,6 +96,34 @@ const GameInterface: React.FC = () => {
     }
   }, [inputValue]);
 
+  // Helper function to extract first N words from a shloka text
+  const getFirstWords = (text: string, wordCount: number = 3): string => {
+    // Split by spaces and common Devanagari punctuation, filter empty strings
+    const words = text.trim().split(/[\s।॥,]+/).filter(w => w.length > 0);
+    return words.slice(0, wordCount).join(' ').toLowerCase();
+  };
+
+  // Check if a shloka has been used before (by comparing first 3 words)
+  const isShlokaUsed = (newShloka: string): boolean => {
+    const newFirstWords = getFirstWords(newShloka, 3);
+    if (!newFirstWords) return false;
+    
+    for (const usedShloka of usedShlokas) {
+      const usedFirstWords = getFirstWords(usedShloka, 3);
+      // Check if first 3 words match, or if one is a prefix of another
+      if (newFirstWords === usedFirstWords) {
+        return true;
+      }
+      // Also check if the new input's first 2 words match (for shorter inputs)
+      const newFirstTwoWords = getFirstWords(newShloka, 2);
+      const usedFirstTwoWords = getFirstWords(usedShloka, 2);
+      if (newFirstTwoWords.length > 0 && newFirstTwoWords === usedFirstTwoWords) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   const processTurn = async (input: string) => {
     const tempId = Date.now().toString();
     
@@ -105,8 +133,8 @@ const GameInterface: React.FC = () => {
     // Normalize input for comparison
     const normalizedInput = processedInput.trim().toLowerCase();
     
-    // Check if shloka has been used before
-    if (usedShlokas.has(normalizedInput)) {
+    // Check if shloka has been used before (using first 2-3 words matching)
+    if (isShlokaUsed(normalizedInput)) {
       const errorMsg: GameMessage = {
         id: tempId,
         sender: 'system',
