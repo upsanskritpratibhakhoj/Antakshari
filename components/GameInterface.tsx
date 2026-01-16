@@ -27,6 +27,8 @@ const GameInterface: React.FC = () => {
     return new Set([initialShloka.text.trim().toLowerCase()]);
   });
   const [transliterationPreview, setTransliterationPreview] = useState<string>('');
+  const [isGameTerminated, setIsGameTerminated] = useState<boolean>(false);
+  const [terminationReason, setTerminationReason] = useState<string>('');
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -45,6 +47,44 @@ const GameInterface: React.FC = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, status]);
+
+  // Anti-cheat: Detect tab switching, minimizing, or leaving the page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && !isGameTerminated) {
+        setIsGameTerminated(true);
+        setTerminationReason('आपने टैब स्विच किया या विंडो मिनिमाइज़ की। खेल समाप्त! (You switched tabs or minimized the window. Game Over!)');
+        setStatus(GameStatus.OVER);
+      }
+    };
+
+    const handleBlur = () => {
+      if (!isGameTerminated) {
+        setIsGameTerminated(true);
+        setTerminationReason('आपने विंडो से फोकस हटाया। खेल समाप्त! (You left the window. Game Over!)');
+        setStatus(GameStatus.OVER);
+      }
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isGameTerminated) {
+        e.preventDefault();
+        e.returnValue = 'खेल चल रहा है। क्या आप वाकई पेज छोड़ना चाहते हैं? (Game is in progress. Are you sure you want to leave?)';
+      }
+    };
+
+    // Add event listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isGameTerminated]);
 
   // Update transliteration preview when input changes
   useEffect(() => {
@@ -146,12 +186,73 @@ const GameInterface: React.FC = () => {
     processTurn(inputValue);
   };
 
+  const restartGame = () => {
+    const newInitialShloka = getRandomInitialShloka();
+    setMessages([
+      {
+        id: 'initial',
+        sender: 'ai',
+        content: '',
+        shloka: newInitialShloka,
+        timestamp: Date.now()
+      }
+    ]);
+    setScore(0);
+    setUsedShlokas(new Set([newInitialShloka.text.trim().toLowerCase()]));
+    setInputValue('');
+    setTransliterationPreview('');
+    setIsGameTerminated(false);
+    setTerminationReason('');
+    setStatus(GameStatus.PLAYING);
+  };
+
+  // Show game terminated screen if cheating detected
+  if (isGameTerminated) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-100px)] sm:h-[calc(100vh-140px)] max-w-4xl mx-auto bg-white rounded-xl sm:rounded-2xl shadow-xl overflow-hidden border border-red-200">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-red-50 to-white">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-red-100 flex items-center justify-center mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 sm:h-12 sm:w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-4 text-center devanagari">खेल समाप्त!</h2>
+          <p className="text-lg sm:text-xl text-gray-700 mb-2 text-center font-semibold">Game Terminated</p>
+          <p className="text-sm sm:text-base text-gray-600 mb-6 text-center max-w-md px-4 devanagari">
+            {terminationReason}
+          </p>
+          <div className="bg-orange-50 rounded-xl p-4 mb-6 border border-orange-200">
+            <p className="text-sm text-gray-600 text-center">
+              <span className="font-semibold">आपका अंतिम स्कोर:</span> <span className="text-xl font-black text-orange-500">{score}</span>
+            </p>
+          </div>
+          <div className="bg-yellow-50 rounded-xl p-4 mb-8 border border-yellow-200 max-w-md">
+            <p className="text-xs sm:text-sm text-yellow-800 text-center">
+              <span className="font-bold">नोट:</span> खेल के दौरान टैब स्विच करना, विंडो मिनिमाइज़ करना, या अन्य विंडो खोलना मना है।<br/>
+              (Switching tabs, minimizing window, or opening other windows is not allowed during the game.)
+            </p>
+          </div>
+          <button
+            onClick={restartGame}
+            className="px-8 py-4 bg-saffron text-white font-bold rounded-xl hover:opacity-90 transition-all shadow-lg flex items-center gap-3 text-base sm:text-lg"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>पुनः आरंभ करें (Restart Game)</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div 
       className="flex flex-col h-[calc(100vh-100px)] sm:h-[calc(100vh-140px)] max-w-4xl mx-auto bg-white rounded-xl sm:rounded-2xl shadow-xl overflow-hidden border border-orange-100"
-      onCopy={(e:any) => e.preventDefault()}
-      onCut={(e:any) => e.preventDefault()}
-      onPaste={(e:any) => e.preventDefault()}
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onPaste={(e) => e.preventDefault()}
+      onContextMenu={(e) => e.preventDefault()}
     >
       {/* Header Info */}
       <div className="bg-orange-50 px-3 sm:px-6 py-3 sm:py-4 border-b border-orange-100 flex justify-between items-center shadow-sm z-10">
