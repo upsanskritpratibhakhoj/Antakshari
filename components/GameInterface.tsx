@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Shloka, GameMessage, GameStatus, ValidationResponse } from '../types';
 import { getRandomInitialShloka } from '../constants';
-import { validateAndGetAiResponse } from '../services/geminiService';
+import { lookupShlokaLocally } from '../services/localShlokaService';
 import { processUserInput, getTransliterationPreview, containsDevanagari } from '../services/transliterationService';
 import ShlokaDisplay from './ShlokaDisplay';
 
@@ -91,27 +91,25 @@ const GameInterface: React.FC = () => {
     setTransliterationPreview('');
     setStatus(GameStatus.LOADING);
 
-    const history = messages.map(m => ({ 
-      sender: m.sender, 
-      content: m.shloka?.text || m.content 
-    }));
+    // Get all used shlokas as an array
+    const previousShlokas: string[] = Array.from(usedShlokas);
     
-    // Now we always send text (speech is transcribed locally first)
-    const result = await validateAndGetAiResponse(processedInput, currentTargetChar, history);
+    // Lookup shloka in local database only
+    const result = lookupShlokaLocally(processedInput, currentTargetChar, previousShlokas);
 
-    if (result.isValid && result.shlokaDetails && result.aiResponse) {
+    if (result.found && result.userShloka && result.aiShloka) {
       // Add both user's shloka and AI's response to used shlokas set
       setUsedShlokas(prev => {
         const newSet = new Set(prev);
-        newSet.add(result.shlokaDetails!.text.trim().toLowerCase());
-        newSet.add(result.aiResponse!.text.trim().toLowerCase());
+        newSet.add(result.userShloka!.text.trim().toLowerCase());
+        newSet.add(result.aiShloka!.text.trim().toLowerCase());
         return newSet;
       });
       
       const updatedUserMsg: GameMessage = {
         ...userMsg,
-        shloka: result.shlokaDetails,
-        content: result.shlokaDetails.text,
+        shloka: result.userShloka,
+        content: result.userShloka.text,
         isValid: true
       };
       
@@ -121,7 +119,7 @@ const GameInterface: React.FC = () => {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
         content: '',
-        shloka: result.aiResponse,
+        shloka: result.aiShloka,
         timestamp: Date.now()
       };
 
@@ -130,11 +128,11 @@ const GameInterface: React.FC = () => {
         return [...filtered, updatedUserMsg, aiMsg];
       });
     } else {
-      // Show the actual error from AI if available, otherwise show generic message
+      // Show error from local lookup
       const errorMsg: GameMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'system',
-        content: result.error || `Please provide a valid Sanskrit shloka starting with '${currentTargetChar}'.`,
+        content: result.error || `श्लोक डेटाबेस में नहीं मिला। कृपया एक मान्य संस्कृत श्लोक '${currentTargetChar}' से प्रदान करें। (Shloka not found in database. Please provide a valid Sanskrit shloka starting with '${currentTargetChar}'.)`,
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, errorMsg]);
