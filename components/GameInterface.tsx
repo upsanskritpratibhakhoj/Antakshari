@@ -147,7 +147,12 @@ const GameInterface: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] sm:h-[calc(100vh-140px)] max-w-4xl mx-auto bg-white rounded-xl sm:rounded-2xl shadow-xl overflow-hidden border border-orange-100">
+    <div 
+      className="flex flex-col h-[calc(100vh-100px)] sm:h-[calc(100vh-140px)] max-w-4xl mx-auto bg-white rounded-xl sm:rounded-2xl shadow-xl overflow-hidden border border-orange-100"
+      onCopy={(e:any) => e.preventDefault()}
+      onCut={(e:any) => e.preventDefault()}
+      onPaste={(e:any) => e.preventDefault()}
+    >
       {/* Header Info */}
       <div className="bg-orange-50 px-3 sm:px-6 py-3 sm:py-4 border-b border-orange-100 flex justify-between items-center shadow-sm z-10">
         <div className="flex items-center gap-2 sm:gap-3">
